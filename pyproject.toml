@@ -1,0 +1,36 @@
+[project]
+name = "air-raid-analysis"
+version = "1.0.0"
+description = "Time Series Analysis of Air Raid Alerts in Ukraine"
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "plotly>=5.18",
+    "statsmodels>=0.14",
+    "requests>=2.31",
+    "eval_type_backport>=0.2.0; python_version < '3.10'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+]
+
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
