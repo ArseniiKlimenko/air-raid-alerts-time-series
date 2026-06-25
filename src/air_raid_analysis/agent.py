@@ -75,7 +75,11 @@ _SYSTEM_PROMPT = (
     "regions, or dates. If the forecast backtest shows MASE >= 1, state plainly "
     "that the model does not beat a seasonal-naive baseline. Output GitHub-flavoured "
     "Markdown: a short '## AI Analyst Briefing' heading, 3-5 tight bullet points on "
-    "trend, seasonality, anomalies and forecast reliability, then one '> ' caveat line."
+    "trend, seasonality, anomalies and forecast reliability, then one '> ' caveat line. "
+    "The data range is whatever the report states; it is current as of this run. "
+    "NEVER mention your training data, knowledge cutoff, or any date that is not in the "
+    "report (e.g. do not write phrases like 'data available up to ...'). The only caveat "
+    "you may add concerns the statistical reliability of the analysis itself."
 )
 
 
