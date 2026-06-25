@@ -1,0 +1,75 @@
+name: Daily Agent Analytics
+
+# Continuous-analytics pipeline: on a schedule, the agent fetches fresh data,
+# runs the full statistical + (optional) LLM analysis, and publishes the
+# regenerated dashboard to GitHub Pages — fully autonomously, no human in the loop.
+
+on:
+  schedule:
+    # GitHub cron is UTC and has NO DST handling.
+    # 04:00 UTC ≈ 07:00 Kyiv in summer (EEST, UTC+3) / 06:00 in winter (EET, UTC+2).
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+# Permissions required by the modern GitHub Pages deployment flow,
+# plus `models: read` so the built-in GITHUB_TOKEN can call GitHub Models.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  models: read
+
+# Never run two deployments concurrently; let an in-flight deploy finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Fetch · Analyse · Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies (incl. optional LLM agent)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[agent]"
+
+      - name: Download fresh dataset
+        run: python scripts/download_data.py --force
+
+      - name: Run analytics + AI analyst
+        env:
+          # MVP path (free): the built-in GITHUB_TOKEN authenticates GitHub
+          # Models (gpt-4o-mini) thanks to `models: read` above.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional override: set this repo secret to use OpenAI directly
+          # instead. If unset it resolves to empty and the agent ignores it.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python main.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

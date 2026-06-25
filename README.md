@@ -1,16 +1,19 @@
 # 🇺🇦 Air Raid Alerts — Time Series Analysis
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen.svg)](#testing)
-[![Lint](https://img.shields.io/badge/ruff-clean-success.svg)](#development)
+[![CI](https://github.com/ArseniiKlimenko/air-raid-alerts-time-series/actions/workflows/ci.yml/badge.svg)](https://github.com/ArseniiKlimenko/air-raid-alerts-time-series/actions/workflows/ci.yml)
+[![Daily Agent Analytics](https://github.com/ArseniiKlimenko/air-raid-alerts-time-series/actions/workflows/daily_agent.yml/badge.svg)](https://github.com/ArseniiKlimenko/air-raid-alerts-time-series/actions/workflows/daily_agent.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A modular Python pipeline that turns the raw [Ukrainian air-raid sirens
 dataset](https://github.com/Vadimkin/ukrainian-air-raid-sirens-dataset) into a
 fully interactive analysis dashboard — from strict per-row validation, through
 local-time aggregation and seasonal decomposition, to an honestly backtested
-SARIMAX forecast.
+SARIMAX forecast — and **redeploys itself daily** via an autonomous GitHub
+Actions pipeline.
 
+> **📊 [Live Dashboard](https://arseniiklimenko.github.io/air-raid-alerts-time-series/)** — rebuilt every day from fresh data
+>
 > **140k+ validated alerts · 25 regions · 2022-02-24 → present**
 
 ---
@@ -53,7 +56,8 @@ cd air-raid-alerts-time-series
 
 # Create the environment and install (editable)
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]"          # base + lint/test tooling
+# pip install -e ".[dev,agent]"  # + optional LLM analyst (needs OPENAI_API_KEY)
 
 # Fetch the dataset (cached for 24h, with retry/backoff)
 python scripts/download_data.py
@@ -98,6 +102,41 @@ CSV ─▶ loader ─▶ preprocessing ─▶ analysis ─▶ visualization ─�
 | [`analysis.py`](src/air_raid_analysis/analysis.py) | Stats, MSTL, ACF/PACF, rolling, anomalies, hourly, SARIMAX |
 | [`visualization.py`](src/air_raid_analysis/visualization.py) | Plotly charts + unified dashboard |
 
+## Agentic Automation Pipeline
+
+This repository is not a static codebase — it is a **self-operating continuous-analytics
+system**. Two GitHub Actions workflows turn every push and every day into an automated
+cycle with no human in the loop.
+
+```
+        ┌─────────────────────────── CI (ci.yml) ───────────────────────────┐
+push/PR ─▶ checkout ─▶ setup-py 3.10 (pip cache) ─▶ ruff check ─▶ pytest ─▶ ✅ gate
+        └────────────────────────────────────────────────────────────────────┘
+
+        ┌──────────────── Daily Agent Analytics (daily_agent.yml) ───────────┐
+cron ───▶ checkout ─▶ install ".[agent]" ─▶ download_data.py --force         │
+07:00    ─▶ main.py  (validate → preprocess → MSTL/SARIMAX → LLM analyst)     │
+Kyiv     ─▶ upload-pages-artifact(output/) ─▶ deploy-pages ─▶ 🌐 Live Dashboard│
+        └────────────────────────────────────────────────────────────────────┘
+```
+
+**How it runs autonomously**
+
+- **Trigger** — a `schedule` cron (`0 4 * * *` UTC ≈ 07:00 Kyiv) fires the agent daily;
+  `workflow_dispatch` allows on-demand runs. No manual `python main.py` is ever needed.
+- **Fresh data** — `download_data.py --force` pulls the latest upstream dataset on every run.
+- **Analysis + agent** — `main.py` executes the full numeric pipeline, then the optional
+  **LLM analyst** (`agent.py`) synthesises a grounded Markdown briefing. It is **env-gated
+  on `OPENAI_API_KEY`** (injected from GitHub Secrets) and **fails open**: missing key,
+  missing SDK, or a flaky API call all degrade to a skipped step — the analytics never break.
+- **Zero-touch deploy** — the regenerated `output/` (dashboard + report + AI briefing) is
+  published with the modern Pages flow (`upload-pages-artifact` → `deploy-pages`) using
+  OIDC (`id-token: write`), so no long-lived deploy token is stored.
+- **Safe concurrency** — CI cancels superseded runs per-ref; the deploy job uses a `pages`
+  concurrency group so two daily runs can never race on a deployment.
+
+The result: the dashboard you see is **rebuilt from reality every morning**, fully hands-off.
+
 ## Sample Output
 
 ```
@@ -131,13 +170,14 @@ CSV ─▶ loader ─▶ preprocessing ─▶ analysis ─▶ visualization ─�
 ## Testing
 
 ```bash
-python -m pytest tests/ -q     # 48 tests
+python -m pytest tests/ -q     # 50 tests
 ```
 
 Coverage spans validation rules, datetime parsing, error collection, local-day
 splitting (incl. midnight crossing & DST-aware attribution), duration preservation,
-aggregation, MSTL, anomaly detection, hour×weekday localization, and the forecast
-(both the sufficient-series and too-short-series paths).
+aggregation, MSTL, anomaly detection, hour×weekday localization, the forecast
+(both the sufficient-series and too-short-series paths), and the AI analyst's
+graceful-skip / Markdown-escaping behaviour.
 
 ## Development
 

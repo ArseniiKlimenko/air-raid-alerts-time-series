@@ -182,10 +182,23 @@ def main() -> int:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report, encoding="utf-8")
 
+    # ── Step 6: AI analyst (optional) ────────────────────────────────────
+    # Runs only when OPENAI_API_KEY is set; otherwise this is a no-op.
+    from air_raid_analysis.agent import generate_ai_insights
+
+    logger.info("Running AI analyst …")
+    insights = generate_ai_insights(report, results["basic_stats"], results.get("forecast"))
+    if insights:
+        (settings.output_dir / "ai_insights.md").write_text(insights, encoding="utf-8")
+        # Rebuild the dashboard so the briefing appears at the top.
+        viz.build_dashboard(viz.figures, insights_md=insights)
+
     print(f"\n{report}")
     print(f"\n✅ Report saved: {report_path}")
     print(f"✅ Charts saved: {settings.output_dir}/")
     print(f"✅ Dashboard:    {settings.output_dir / 'index.html'}")
+    if insights:
+        print(f"🤖 AI insights:  {settings.output_dir / 'ai_insights.md'}")
 
     return 0
 

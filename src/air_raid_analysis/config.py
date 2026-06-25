@@ -74,6 +74,16 @@ class AnalysisSettings(BaseSettings):
         default=3, ge=1, description="Rolling-origin backtest folds for forecast evaluation"
     )
 
+    # ── LLM analyst (optional) ───────────────────────────────────────────
+    # Activated when a token is present. Two providers are auto-detected:
+    #   * OPENAI_API_KEY  → OpenAI directly (base_url stays default).
+    #   * GITHUB_TOKEN    → GitHub Models (free, token-based) for an MVP.
+    # Override the endpoint/model via ARA_LLM_BASE_URL / ARA_LLM_MODEL.
+    llm_model: str = "gpt-4o-mini"
+    llm_base_url: str | None = None
+    github_models_base_url: str = "https://models.github.ai/inference"
+    llm_max_tokens: int = Field(default=700, ge=64, description="Max tokens for the AI insight")
+
     # ── Validation boundaries ────────────────────────────────────────────
     war_start_date: str = "2022-02-24"
 

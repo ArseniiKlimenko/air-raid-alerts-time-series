@@ -19,6 +19,10 @@ dev = [
     "pytest>=7.0",
     "ruff>=0.1",
 ]
+# Optional LLM analyst layer — only needed to run the agentic insight step.
+agent = [
+    "openai>=1.0",
+]
 
 
 [build-system]
